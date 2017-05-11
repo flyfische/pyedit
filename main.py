@@ -21,7 +21,7 @@ class Key(object):
 	ARROW_UP = 1004
 	ARROW_DOWN = 1005
 
-	
+
 class Editor(object):
 	def write(self, content):
 		self.buffer += content
@@ -71,7 +71,7 @@ class Editor(object):
 
 	def move_cursor(self, char):
 		if char == "a":
-			if self.cx != 0:
+			if self.cx != 1:
 				self.cx -= 1
 		elif char == "d":
 			if self.cx != self.cols - 1:
@@ -101,15 +101,27 @@ class Editor(object):
 		self.rows = row
 		self.cols = col
 
+
+	def set_cursor_visible(self, enabled=True, draw=True):
+		if enabled:
+			self.write(b"\x1b[?25h")
+		else:
+			self.write(b"\x1b[?25l")
+		if draw:
+			self.draw()
+	def position_cursor(self, x, y, draw=True):
+		self.write("\x1b[{};{}H".format(y + 1, x + 1))
+		if draw:
+			self.draw()
 	def refresh_screen(self):
 		# hide cursor
-		self.write(b"\x1b[?25l")
+		self.set_cursor_visible(enabled=False, draw=False)
 		# position cursor at (1,1)
 		self.write(b"\x1b[H")
 		self.draw_rows()
-		self.write("\x1b[{};{}H".format(self.cy + 1, self.cx + 1))
+		self.position_cursor(self.cx, self.cy)
 		# display the cursor
-		self.write(b"\x1b[?25h")
+		self.set_cursor_visible(enabled=True, draw=False)
 		self.draw()
 	
 	def draw_rows(self):
@@ -132,7 +144,7 @@ class Editor(object):
 		self.buffer = ""
 		self.rows = 0
 		self.cols = 0
-		self.cx = 0
+		self.cx = 1
 		self.cy = 0
 		self.get_window_size()
 
