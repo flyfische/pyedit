@@ -129,6 +129,9 @@ class Editor(object):
 			self.write("~")
 			# clear the screen to the right of the cursor
 			self.write(b"\x1b[K")
+			if x == self.rows / 2 - 3:
+				welcome_string = "Welcome to PyEdit"
+				self.write("{}{}".format(" " * ((self.cols - (len(welcome_string)  / 2)) / 2), welcome_string))
 			if x < self.rows - 1:
 				self.write("\r\n")
 	
