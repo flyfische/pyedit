@@ -33,13 +33,13 @@ class Editor(object):
 	def enable_raw_mode(self):
 		self.orig_termios = termios.tcgetattr(sys.stdin.fileno())
 		#formatted like this: [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]
-		new = termios.tcgetattr(sys.stdin)
+		new = termios.tcgetattr(sys.stdin.fileno())
 		new[0] &= ~(termios.IXON | termios.ICRNL | termios.BRKINT | termios.ISTRIP | termios.INPCK)
 		new[1] &= ~(termios.OPOST)
 		new[2] |=  (termios.CS8)
 		new[3] &= ~(termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN)
-		new[6][termios.VMIN] = 0
-		new[6][termios.VTIME] = 1;
+		new[6][termios.VMIN] = 1
+		new[6][termios.VTIME] = 1
 		termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, new)
 
 	def disable_raw_mode(self):
@@ -80,7 +80,7 @@ class Editor(object):
 			if self.cy != 0:
 				self.cy -= 1
 		elif char == "s":
-			if self.cy != self.rows - 1:
+			if self.cy != self.rows - 2:
 				self.cy += 1
 
 	def process_keypress(self):
@@ -89,6 +89,11 @@ class Editor(object):
 			self.cleanup()
 		if char == "a" or char == "s" or char == "d" or char == "w":
 			self.move_cursor(char)
+
+	
+	def draw_statusbar(self):
+		self.position_cursor(0, self.rows - 1)
+		self.write("--- Normal ---")
 
 	def get_window_size(self):
 		winsize = struct.pack('HHHH', 0, 0, 0, 0)
@@ -101,7 +106,6 @@ class Editor(object):
 		self.rows = row
 		self.cols = col
 
-
 	def set_cursor_visible(self, enabled=True, draw=True):
 		if enabled:
 			self.write(b"\x1b[?25h")
@@ -109,31 +113,44 @@ class Editor(object):
 			self.write(b"\x1b[?25l")
 		if draw:
 			self.draw()
+
 	def position_cursor(self, x, y, draw=True):
 		self.write("\x1b[{};{}H".format(y + 1, x + 1))
 		if draw:
 			self.draw()
+	
+	def open(self):
+		self.row_data.append("Hello")
+
 	def refresh_screen(self):
 		# hide cursor
 		self.set_cursor_visible(enabled=False, draw=False)
 		# position cursor at (1,1)
-		self.write(b"\x1b[H")
+		self.position_cursor(0,0)
 		self.draw_rows()
+		self.draw_statusbar()
 		self.position_cursor(self.cx, self.cy)
 		# display the cursor
 		self.set_cursor_visible(enabled=True, draw=False)
 		self.draw()
 	
 	def draw_rows(self):
-		for x in range(0,self.rows):
-			self.write("~")
-			# clear the screen to the right of the cursor
-			self.write(b"\x1b[K")
-			if x == self.rows / 2 - 3:
-				welcome_string = "Welcome to PyEdit"
-				self.write("{}{}".format(" " * ((self.cols - (len(welcome_string)  / 2)) / 2), welcome_string))
-			if x < self.rows - 1:
-				self.write("\r\n")
+		for x in range(0,self.rows - 1):
+			if x >= len(self.row_data):
+				self.write("~")
+				# clear the screen to the right of the cursor
+				self.write(b"\x1b[K")
+				if x == self.rows / 2 - 3:
+					welcome_string = "Welcome to PyEdit"
+					self.write("{}{}".format(" " * ((self.cols - (len(welcome_string)  / 2)) / 2), welcome_string))
+				if x < self.rows - 2:
+					self.write("\r\n")
+			else:
+				if len(self.row_data[x]) > self.rows:
+					row_len = self.cols
+				else:
+					row_len = len(self.row_data[x])
+				self.write(self.row_data[x][:row_len])
 	
 	def cleanup(self):
 		self.write(b"\x1b[2J")
@@ -149,6 +166,7 @@ class Editor(object):
 		self.cols = 0
 		self.cx = 1
 		self.cy = 0
+		self.row_data = []
 		self.get_window_size()
 
 		
@@ -156,7 +174,9 @@ class Editor(object):
 
 if __name__ == "__main__":
 	editor = Editor()
+	editor.open()
 	while True:
+
 		editor.refresh_screen()
 		editor.process_keypress()
 
